@@ -10,20 +10,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdint.h>
-
-typedef int gboolean;
-typedef void* gpointer;
-
-typedef struct _GString {
-    char *str;
-    size_t len;
-} GString;
-
-typedef struct _GList {
-    gpointer data;
-    struct _GList *next;
-    struct _GList *prev;
-} GList;
+#include <glib.h>
 
 void *g_malloc(size_t size) {
     void *p = malloc(size);
@@ -182,10 +169,51 @@ void g_list_free_full(GList *list, void (*free_func)(gpointer)) {
 }
 
 /* simple wrapper helpers sometimes used in code */
-void *g_new0(size_t sz, size_t count) {
-    return g_malloc0(sz * count);
+
+char *g_build_filename(const char *first, ...) {
+    /* concatenate components with '/' */
+    if (!first) return NULL;
+    size_t len = strlen(first) + 1;
+    va_list ap;
+    va_start(ap, first);
+    const char *part;
+    while ((part = va_arg(ap, const char *)) != NULL) {
+        len += strlen(part) + 1; /* '/' or '\0' */
+    }
+    va_end(ap);
+
+    char *out = (char *) g_malloc(len);
+    out[0] = '\0';
+    strcat(out, first);
+    va_start(ap, first);
+    while ((part = va_arg(ap, const char *)) != NULL) {
+        strcat(out, "/");
+        strcat(out, part);
+    }
+    va_end(ap);
+    return out;
 }
 
-void *g_new(size_t sz, size_t count) {
-    return g_malloc(sz * count);
+void *g_private_get(void *key) {
+    (void)key;
+    return NULL;
 }
+
+int g_atomic_int_get(const int *p) {
+    if (!p) return 0;
+    return *p;
+}
+
+int g_atomic_int_add(int *p, int val) {
+    if (!p) return val;
+    *p += val;
+    return *p;
+}
+
+int g_atomic_int_exchange_and_add(int *p, int val) {
+    if (!p) return 0;
+    int old = *p;
+    *p += val;
+    return old;
+}
+

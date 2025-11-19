@@ -5,7 +5,6 @@
 
 #include "gnubg-types.h"
 #include "eval.h"
-#include "drawboard.h"
 
 static int g_engine_initialized = 0;
 
@@ -89,24 +88,25 @@ char* get_best_move(BoardState board, int dice[2]) {
         return empty;
     }
 
-    for (int i = 0; i < 8; ++i)
-        anMove[i] = -1;
+    (void)anMove; /* no move generation in this minimal Wasm build */
 
-    int res = FindBestMove(anMove, nDice0, nDice1, anBoard, &ci, &ec, defaultFilters);
-    if (res < 0) {
+    /* Evaluate the position and return only evaluation metrics as JSON. */
+    float arOutput[NUM_ROLLOUT_OUTPUTS];
+    if (EvaluatePosition(NULL, (ConstTanBoard) anBoard, arOutput, &ci, &ec) < 0) {
         char *empty = (char*)malloc(1);
         if (empty) empty[0] = '\0';
         return empty;
     }
 
-    /* Format the move string into a small buffer using FormatMove.
-       FORMATEDMOVESIZE is defined as 29 in drawboard.h. */
-    char buf[FORMATEDMOVESIZE];
-    FormatMove(buf, (ConstTanBoard) anBoard, anMove);
+    float win = arOutput[OUTPUT_WIN];
+    float gammon = arOutput[OUTPUT_WINGAMMON] + arOutput[OUTPUT_WINBACKGAMMON];
+    float equity = Utility(arOutput, &ci);
 
-    /* Return a heap-allocated copy (caller frees). */
-    char *ret = (char*)malloc(strlen(buf) + 1);
-    if (ret)
-        strcpy(ret, buf);
+    char smallbuf[128];
+    int pos = snprintf(smallbuf, sizeof(smallbuf), "{\"move\":[],\"evaluation\":{\"win\":%.6f,\"gammon\":%.6f,\"equity\":%.6f}}", win, gammon, equity);
+    if (pos < 0) pos = 0;
+    size_t len = (size_t) pos + 1;
+    char *ret = (char*) malloc(len);
+    if (ret) memcpy(ret, smallbuf, len);
     return ret;
 }

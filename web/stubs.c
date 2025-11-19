@@ -32,15 +32,15 @@ int nAutoSaveTime = 0;
 void ProcessEvents(void) {}
 
 /* Autosave stub used as timer callback in some builds. */
-gboolean save_autosave(gpointer UNUSED(unused)) { (void)unused; return FALSE; }
+gboolean save_autosave(gpointer unused) { (void)unused; return FALSE; }
 
 /* Minimal thread API stubs (we don't use threads in the initial Wasm build). */
 void MT_CloseThreads(void) { }
 void MT_StartThreads(void) { }
-void MT_SetNumThreads(unsigned int UNUSED(n)) { (void)n; }
+void MT_SetNumThreads(unsigned int n) { (void)n; }
 
 /* Signature matches multithread.h: MT_WaitForTasks(callback, callbackTime, autosave) */
-int MT_WaitForTasks(int (*UNUSED(pCallback))(void *), int UNUSED(callbackTime), int UNUSED(autosave)) {
+int MT_WaitForTasks(int (*pCallback)(void *), int callbackTime, int autosave) {
     (void)pCallback; (void)callbackTime; (void)autosave;
     return 0;
 }

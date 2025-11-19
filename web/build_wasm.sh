@@ -16,9 +16,8 @@ SOURCES=( \
   web/stubs.c \
   web/glib_stubs.c \
   eval.c \
-  play.c \
   positionid.c \
-  lib/neuralnet.c \
+  web/neuralnet_stub.c \
   lib/cache.c \
   lib/SFMT.c \
 )
@@ -28,6 +27,7 @@ INCLUDES=( -I. -Ilib -Iweb )
 
 # Use config override to disable multithreading for Wasm
 INCLUDES+=( -include web/config_override.h )
+INCLUDES+=( -include web/glib.h )
 
 # Emscripten flags: optimize and allow memory growth
 EMFLAGS=( -O3 -s WASM=1 -s ALLOW_MEMORY_GROWTH=1 -s MODULARIZE=1 -s EXPORT_ES6=0 )
@@ -40,20 +40,17 @@ EXTRA=( -s EXPORTED_RUNTIME_METHODS='["cwrap","UTF8ToString","getValue"]' )
 
 # Preload any data files if desired (example: preload a weights file into the filesystem)
 # --preload-file path_on_host@/path/in/wasmfs
-PRELOAD=( --preload-file pkgdata/gnubg.weights@/gnubg.weights )
+if [ -f pkgdata/gnubg.weights ]; then
+  PRELOAD=( --preload-file pkgdata/gnubg.weights@/gnubg.weights )
+else
+  PRELOAD=()
+fi
 
 mkdir -p ${OUT_DIR}
 
 echo "Compiling sources: ${SOURCES[*]}"
 
-${EMCC} \ 
-  "${INCLUDES[@]}" \ 
-  "${SOURCES[@]}" \ 
-  "${EMFLAGS[@]}" \ 
-  "${EXPORTED[@]}" \ 
-  "${EXTRA[@]}" \ 
-  "${PRELOAD[@]}" \ 
-  -o "${OUT_JS}"
+"${EMCC}" "${INCLUDES[@]}" "${SOURCES[@]}" "${EMFLAGS[@]}" "${EXPORTED[@]}" "${EXTRA[@]}" "${PRELOAD[@]}" -o "${OUT_JS}"
 
 echo
 echo "WASM build finished: ${OUT_JS} (and ${OUT_WASM})"
