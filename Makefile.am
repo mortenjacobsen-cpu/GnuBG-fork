@@ -19,17 +19,18 @@ ACLOCAL_AMFLAGS = -I m4
 SUBDIRS = win32 lib doc met po m4 sounds board3d textures scripts flags fonts non-src pixmaps .
 
 bin_PROGRAMS = gnubg makebearoff makehyper bearoffdump makeweights
+noinst_PROGRAMS = web/test_bridge
+# Build the web bridge test program by including the common utility
+# sources used by the engine plus the drawboard formatter so that
+# symbols like `EvalInitialise`, `FindBestMove` and `FormatMove`
+# are available at link time.
+web_test_bridge_SOURCES = web/web_bridge.c web/test_main.c $(UTILSOURCES) drawboard.c multithread.c
+# Use the same LDADD flags as the main `gnubg` target so required
+# libraries are linked in.
+web_test_bridge_LDADD = $(gnubg_LDADD)
+web_test_bridge_LDFLAGS =
 
-#
-##include path
-#
-if WIN32
-localeloc=-DLOCALEDIR=\"locale\" 
-else
-localeloc=-DLOCALEDIR=\"$(localedir)\"
-endif 
-
-AM_CPPFLAGS = -I$(srcdir)/lib -I$(builddir)/pixmaps -I$(srcdir)/pixmaps \
+AM_CPPFLAGS = -I$(srcdir)/lib -I$(builddir)/pixmaps -I$(srcdir)/pixmaps -I$(srcdir)/web \
 	   $(localeloc) @FREETYPE2_CFLAGS@ @GLIB_CFLAGS@ \
 	   @LIBPNG_CFLAGS@ @GTK_CFLAGS@ @CAIRO_CFLAGS@ @PANGOCAIRO_CFLAGS@ \
 	   @GTHREAD_CFLAGS@ @CANBERRA_CFLAGS@ @GOBJECT_CFLAGS@ \
@@ -50,6 +51,8 @@ AM_CPPFLAGS += -DAC_DOCDIR='"$(docdir)"' -DAC_DATADIR='"$(datadir)"' -DAC_PKGDAT
 
 AM_CPPFLAGS += -DBUILD_DATE=@BUILD_DATE@
 
+ # Ensure LOCALEDIR is defined for bindtextdomain usage in gnubg.c
+AM_CPPFLAGS += -DLOCALEDIR='"$(localedir)"'
 OTHER_LIBS =
 if WIN32
 OTHER_LIBS += win32/win32res.o
