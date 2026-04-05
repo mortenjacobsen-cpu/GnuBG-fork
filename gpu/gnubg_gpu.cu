@@ -304,7 +304,7 @@ __device__ static void gpu_calc_half_inputs(
     /* Backbone (simplified) */
     {
         int pa = -1, w = 0, tot = 0;
-        static const int ac[23] = {
+        const int ac[23] = {
             11, 11, 11, 11, 11, 11, 11,
             6, 5, 4, 3, 2,
             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
@@ -379,27 +379,29 @@ __device__ static void gpu_menoff_all(const unsigned int *anBoard, float *afInpu
 __device__ void gpu_calc_contact_inputs(const GPUBoard board, float *arInput) {
     gpu_base_inputs(board, arInput);
 
-    /* Side 0 features */
+    /* Side 0 features: board[0] is "own", board[1] is "opponent" */
     float *b = arInput + GPU_MINPPERPOINT * 25 * 2;
     gpu_menoff_non_crashed(board[0], b + GPU_I_OFF1);
-    gpu_calc_half_inputs(board[1], board[0], b);
+    gpu_calc_half_inputs(board[0], board[1], b);
 
-    /* Side 1 features */
+    /* Side 1 features: board[1] is "own", board[0] is "opponent" */
     b = arInput + (GPU_MINPPERPOINT * 25 * 2 + GPU_MORE_INPUTS);
     gpu_menoff_non_crashed(board[1], b + GPU_I_OFF1);
-    gpu_calc_half_inputs(board[0], board[1], b);
+    gpu_calc_half_inputs(board[1], board[0], b);
 }
 
 __device__ void gpu_calc_crashed_inputs(const GPUBoard board, float *arInput) {
     gpu_base_inputs(board, arInput);
 
+    /* Side 0 features: board[0] is "own", board[1] is "opponent" */
     float *b = arInput + GPU_MINPPERPOINT * 25 * 2;
-    gpu_menoff_all(board[1], b + GPU_I_OFF1);
-    gpu_calc_half_inputs(board[1], board[0], b);
-
-    b = arInput + (GPU_MINPPERPOINT * 25 * 2 + GPU_MORE_INPUTS);
     gpu_menoff_all(board[0], b + GPU_I_OFF1);
     gpu_calc_half_inputs(board[0], board[1], b);
+
+    /* Side 1 features: board[1] is "own", board[0] is "opponent" */
+    b = arInput + (GPU_MINPPERPOINT * 25 * 2 + GPU_MORE_INPUTS);
+    gpu_menoff_all(board[1], b + GPU_I_OFF1);
+    gpu_calc_half_inputs(board[1], board[0], b);
 }
 
 /* ======================================================================
@@ -434,7 +436,7 @@ __device__ GPUPositionClass gpu_classify_position(const GPUBoard board) {
                 if ((1 + tot - (board[side][0] + board[side][1])) <= N && board[side][1] > 1)
                     return GPU_CLASS_CRASHED;
             } else {
-                if (tot <= N + (board[side][1] - 1))
+                if (board[side][1] > 1 && tot <= N + (board[side][1] - 1))
                     return GPU_CLASS_CRASHED;
             }
         }
@@ -578,7 +580,7 @@ __device__ int gpu_apply_sub_move(GPUBoard board, int iSrc, int nRoll) {
         return -1;  /* Blocked */
 
     if (board[0][23 - iDest] == 1) {
-        /* Hit */
+        /* Hit: capture opponent's blot, place our checker */
         board[1][iDest] = 1;
         board[0][23 - iDest] = 0;
         board[0][24]++;
@@ -659,7 +661,7 @@ __device__ int gpu_generate_moves(
         }
 
         /* Use iterative DFS with explicit stack */
-        MoveGenState stack[5];  /* max depth 4 + 1 */
+        MoveGenState stack[64];  /* enough for branching at each depth */
         int sp = 0;
 
         /* Push initial state */
@@ -712,7 +714,7 @@ __device__ int gpu_generate_moves(
             /* On bar */
             if (cur.board[1][24]) {
                 if (cur.board[0][anRoll[cur.depth] - 1] < 2) {
-                    if (sp < 5) {
+                    if (sp < 64) {
                         MoveGenState &next = stack[sp];
                         for (int i = 0; i < 2; i++)
                             for (int j = 0; j < 25; j++)
@@ -738,7 +740,7 @@ __device__ int gpu_generate_moves(
             }
 
             /* Not on bar */
-            for (int i = cur.iPip; i >= 0 && sp < 5 && nMoves < GPU_MOVE_BUF_SIZE; i--) {
+            for (int i = cur.iPip; i >= 0 && sp < 64 && nMoves < GPU_MOVE_BUF_SIZE; i--) {
                 if (cur.board[1][i] && gpu_legal_move(cur.board, i, anRoll[cur.depth])) {
                     MoveGenState &next = stack[sp];
                     for (int ii = 0; ii < 2; ii++)
